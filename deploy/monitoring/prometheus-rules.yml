@@ -1,0 +1,42 @@
+# Example Prometheus alerting rules for Torqrun. Adjust thresholds to your workload.
+# Platform gauges (torqrun_runs, torqrun_queue_depth, torqrun_agents) are read from the database
+# by every API replica, so aggregate them with max(), not sum().
+groups:
+  - name: torqrun
+    rules:
+      - alert: TorqrunApiDown
+        expr: absent(up{job="torqrun-api"} == 1)
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: No Torqrun API replica can be scraped.
+
+      - alert: TorqrunNoAgentsOnline
+        expr: max(torqrun_agents{state="online"}) == 0
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: No Torqrun agent is connected; no job can run.
+
+      - alert: TorqrunQueueBacklog
+        expr: max by (queue) (torqrun_queue_depth) > 0 and max by (queue) (delta(torqrun_queue_depth[10m])) > 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: 'Queue {{ $labels.queue }} keeps growing ({{ $value }} waiting).'
+          description: Not enough agent slots, a paused queue, or no agent serving this queue/executor.
+
+      - alert: TorqrunServerErrors
+        expr: |
+          sum(rate(torqrun_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(torqrun_http_requests_total[5m])) > 0.01
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: More than 1% of Torqrun API requests fail with 5xx.
+
+      - alert: TorqrunRunsLost
+        expr: max(delta(torqrun_runs{status="LOST"}[15m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: Runs were declared lost in the last 15 minutes (agents disappearing mid-run).

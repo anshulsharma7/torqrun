@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability
+    about: Please report security issues privately, not as public issues.
+  - name: Commercial support, managed hosting or Enterprise plan
+    url: mailto:anshulshrm12@gmail.com?subject=Torqrun%20plans
+    about: Team and Enterprise plans, quotes and guaranteed support. See docs/editions.md.
+  - name: Questions about using Torqrun
+    url: https://github.com/anshulsharma7/torqrun/blob/main/SUPPORT.md
+    about: Where to find docs and help.

@@ -1,0 +1,9 @@
+# Run several API replicas behind the bundled nginx (which round-robins over them via Docker
+# DNS). The API's own host port is dropped (replicas can't share it); use the web port.
+#   docker compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.scale.yml \
+#     --project-directory . up -d --scale api=3
+# Notes: artifacts live on the shared named volume (fine on one host; use shared storage across
+# hosts); login throttling is per replica.
+services:
+  api:
+    ports: !reset []

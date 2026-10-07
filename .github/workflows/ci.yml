@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: torqrun
+          POSTGRES_PASSWORD: torqrun_ci
+          POSTGRES_DB: torqrun
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U torqrun" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy
+      - name: Image for the container-executor tests
+        run: docker pull python:3.12-slim-bookworm
+      - name: Tests (unit + integration)
+        env:
+          TORQRUN_TEST_DATABASE_URL: postgresql://torqrun:torqrun_ci@127.0.0.1:5432/postgres
+          # Private repository only (Enterprise tests); unset in the public Community repo.
+          TORQRUN_TEST_LICENSE_KEY: ${{ secrets.TORQRUN_TEST_LICENSE_KEY }}
+        run: uv run pytest -rs  # -rs: list skipped tests and why
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  security:
+    name: Security scans
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Build images
+        run: docker compose -f deploy/compose/docker-compose.yml --project-directory . build
+        env:
+          TORQRUN_DEV_ENROLLMENT_TOKEN: build-only-not-used
+          TORQRUN_SECRET_KEY: build-only-not-used-0123456789abcdef
+      - name: Scan dependencies and images
+        run: tools/ops/security-scan.sh
+
+  compose-e2e:
+    name: Compose stack end-to-end
+    runs-on: ubuntu-24.04
+    needs: [python, web]
+    env:
+      COMPOSE: docker compose -f deploy/compose/docker-compose.yml --project-directory .
+      ADMIN_EMAIL: ci-admin@example.com
+      TORQRUN_PASSWORD: ci-admin-password-not-secret
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start stack
+        run: |
+          tools/dev/init-env.sh
+          printf 'TORQRUN_BOOTSTRAP_ADMIN_EMAIL=%s\nTORQRUN_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$ADMIN_EMAIL" "$TORQRUN_PASSWORD" >> .env
+          # Licensed stack in the private repository; Community Edition in the public one.
+          printf 'TORQRUN_LICENSE_KEY=%s\n' "$LICENSE" >> .env
+          $COMPOSE up --build -d
+        env:
+          LICENSE: ${{ secrets.TORQRUN_TEST_LICENSE_KEY }}
+      - name: Wait for healthy stack with a connected agent
+        run: tools/dev/wait-for-ready.sh http://127.0.0.1:8080 300
+      - name: Probes through the proxy
+        run: |
+          curl -fsS http://127.0.0.1:8080/healthz
+          curl -fsS http://127.0.0.1:8080/readyz
+          curl -fsS http://127.0.0.1:8080/ | grep -q '<div id="root">'
+          # Signed out, user data is not readable.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/jobs)" = 401
+      - name: Create an API token for the scripts below
+        run: |
+          token=$(tools/dev/api-token.sh http://127.0.0.1:8080 "$ADMIN_EMAIL" ci)
+          echo "::add-mask::$token"
+          echo "TORQRUN_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Run real jobs on the bundled agent
+        run: |
+          examples/api/run_job.sh examples/python-jobs/disk_report.py http://127.0.0.1:8080 /
+          examples/api/run_job.sh examples/shell-jobs/http_check.sh http://127.0.0.1:8080 http://api:8000/healthz
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Browser tests (Playwright)
+        working-directory: apps/web
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          TORQRUN_E2E_BASE_URL=http://127.0.0.1:8080 TORQRUN_E2E_EMAIL="$ADMIN_EMAIL" \
+            TORQRUN_E2E_PASSWORD="$TORQRUN_PASSWORD" pnpm e2e
+      - name: Data and agent identity survive a restart
+        run: |
+          api() { curl -fsS -H "Authorization: Bearer $TORQRUN_TOKEN" "$@"; }
+          agent_id() { api http://127.0.0.1:8080/api/v1/agents | jq -r '.[] | select(.name == "compose-agent") | .id'; }
+          runs_before=$(api "http://127.0.0.1:8080/api/v1/runs?limit=1" | jq .total)
+          before=$(agent_id)
+          $COMPOSE restart
+          tools/dev/wait-for-ready.sh http://127.0.0.1:8080 180
+          test "$(agent_id)" = "$before"  # same identity, no re-enrollment
+          test "$(api "http://127.0.0.1:8080/api/v1/runs?limit=1" | jq .total)" = "$runs_before"
+          examples/api/run_job.sh examples/python-jobs/disk_report.py http://127.0.0.1:8080 /
+      - name: Backup / restore drill (separate throwaway stack)
+        run: tools/ops/backup-drill.sh
+      - name: Logs on failure
+        if: failure()
+        run: $COMPOSE logs --no-color
+      - name: Tear down
+        if: always()
+        run: $COMPOSE down -v

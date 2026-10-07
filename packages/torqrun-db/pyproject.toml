@@ -1,0 +1,19 @@
+[project]
+name = "torqrun-db"
+version = "0.1.0.dev0"
+description = "Torqrun persistence layer: SQLAlchemy models, engine setup and Alembic migrations."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "alembic>=1.15",
+  "torqrun-core",
+  "psycopg[binary]>=3.2",
+  "sqlalchemy[asyncio]>=2.0.36",
+]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/torqrun_db"]

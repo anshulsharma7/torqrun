@@ -1,0 +1,138 @@
+# Development / single-host stack. Run from the repo root via `make up`, or:
+#   docker compose -f deploy/compose/docker-compose.yml --project-directory . up --build
+# All published ports bind to 127.0.0.1 only; nothing is exposed to the network by default.
+name: torqrun
+
+x-api-image: &api-image
+  image: torqrun/api:dev
+  build:
+    context: .
+    dockerfile: deploy/docker/python.Dockerfile
+    target: api
+
+x-api-env: &api-env
+  TORQRUN_DATABASE_URL: postgresql://torqrun:${POSTGRES_PASSWORD:-torqrun_dev}@postgres:5432/torqrun
+  TORQRUN_ENVIRONMENT: ${TORQRUN_ENVIRONMENT:-development}
+  TORQRUN_LOG_LEVEL: ${TORQRUN_LOG_LEVEL:-INFO}
+  TORQRUN_LOG_FORMAT: ${TORQRUN_LOG_FORMAT:-json}
+  TORQRUN_DEV_ENROLLMENT_TOKEN: ${TORQRUN_DEV_ENROLLMENT_TOKEN:?run tools/dev/init-env.sh (or make up) to create .env}
+  # API and scheduler must agree on the lease TTL (how long a silent agent keeps its runs).
+  TORQRUN_LEASE_TTL_SECONDS: ${TORQRUN_LEASE_TTL_SECONDS:-60}
+  TORQRUN_SECRET_KEY: ${TORQRUN_SECRET_KEY:?run tools/dev/init-env.sh (or make up) to update .env}
+  TORQRUN_BOOTSTRAP_ADMIN_EMAIL: ${TORQRUN_BOOTSTRAP_ADMIN_EMAIL:-}
+  TORQRUN_BOOTSTRAP_ADMIN_PASSWORD: ${TORQRUN_BOOTSTRAP_ADMIN_PASSWORD:-}
+  TORQRUN_PUBLIC_URL: ${TORQRUN_PUBLIC_URL:-}
+  # Torqrun Team/Enterprise license (ignored by the Community Edition).
+  TORQRUN_LICENSE_KEY: ${TORQRUN_LICENSE_KEY:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    # Connection budget: every API replica may open TORQRUN_DB_POOL_SIZE + TORQRUN_DB_MAX_OVERFLOW
+    # (default 10 + 10), the scheduler 4, plus migrations and admin tools. Raise this when
+    # adding API replicas (docs/operations/production.md).
+    command: ["postgres", "-c", "max_connections=${POSTGRES_MAX_CONNECTIONS:-200}"]
+    environment:
+      POSTGRES_USER: torqrun
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-torqrun_dev}
+      POSTGRES_DB: torqrun
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U torqrun -d torqrun"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    <<: *api-image
+    command: ["python", "-m", "torqrun_db.migrate", "upgrade"]
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *api-image
+    environment: *api-env
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes:
+      - artifacts:/var/lib/torqrun/artifacts
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Background maintenance: lease reaper, retry promotion, requeue of unacknowledged work,
+  # schedules, workflows, notification delivery.
+  # Safe to scale out (every step uses SKIP LOCKED).
+  scheduler:
+    image: torqrun/scheduler:dev
+    build:
+      context: .
+      dockerfile: deploy/docker/python.Dockerfile
+      target: scheduler
+    environment:
+      TORQRUN_DATABASE_URL: postgresql://torqrun:${POSTGRES_PASSWORD:-torqrun_dev}@postgres:5432/torqrun
+      TORQRUN_LEASE_TTL_SECONDS: ${TORQRUN_LEASE_TTL_SECONDS:-60}
+      TORQRUN_LOG_LEVEL: ${TORQRUN_LOG_LEVEL:-INFO}
+      TORQRUN_LOG_FORMAT: ${TORQRUN_LOG_FORMAT:-json}
+      # Notifications: decrypt channel settings (same key as the API), link back, send email.
+      TORQRUN_SECRET_KEY: ${TORQRUN_SECRET_KEY:?run tools/dev/init-env.sh (or make up) to update .env}
+      TORQRUN_PUBLIC_URL: ${TORQRUN_PUBLIC_URL:-}
+      TORQRUN_LICENSE_KEY: ${TORQRUN_LICENSE_KEY:-}
+      TORQRUN_SMTP_HOST: ${TORQRUN_SMTP_HOST:-}
+      TORQRUN_SMTP_PORT: ${TORQRUN_SMTP_PORT:-587}
+      TORQRUN_SMTP_USERNAME: ${TORQRUN_SMTP_USERNAME:-}
+      TORQRUN_SMTP_PASSWORD: ${TORQRUN_SMTP_PASSWORD:-}
+      TORQRUN_SMTP_FROM: ${TORQRUN_SMTP_FROM:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # A local agent so jobs run out of the box. Jobs execute inside this container as an
+  # unprivileged user; it is a convenience for development, not an isolation boundary.
+  agent:
+    image: torqrun/agent:dev
+    build:
+      context: .
+      dockerfile: deploy/docker/python.Dockerfile
+      target: agent
+    environment:
+      TORQRUN_AGENT_SERVER_URL: http://api:8000
+      # Plain HTTP is acceptable only on this private Compose network.
+      TORQRUN_AGENT_ALLOW_INSECURE_HTTP: "true"
+      TORQRUN_AGENT_ENROLLMENT_TOKEN: ${TORQRUN_DEV_ENROLLMENT_TOKEN:?run tools/dev/init-env.sh (or make up) to create .env}
+      TORQRUN_AGENT_NAME: ${TORQRUN_AGENT_NAME:-compose-agent}
+      TORQRUN_AGENT_MAX_SLOTS: ${TORQRUN_AGENT_MAX_SLOTS:-4}
+    volumes:
+      - agentstate:/var/lib/torqrun-agent
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  web:
+    image: torqrun/web:dev
+    build:
+      context: .
+      dockerfile: deploy/docker/web.Dockerfile
+      target: web
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  agentstate:
+  artifacts:

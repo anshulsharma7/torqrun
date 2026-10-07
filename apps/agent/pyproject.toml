@@ -1,0 +1,22 @@
+[project]
+name = "torqrun-agent"
+version = "0.1.0.dev0"
+description = "Torqrun agent: enrolls with the control plane, claims jobs and runs them."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "torqrun-protocol",
+  "httpx>=0.28",
+  "pydantic>=2.10",
+  "pydantic-settings>=2.7",
+]
+
+[project.scripts]
+torq-agent = "torqrun_agent.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/torqrun_agent"]

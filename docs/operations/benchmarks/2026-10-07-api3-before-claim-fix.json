@@ -1,0 +1,119 @@
+{
+  "config": {
+    "base_url": "http://127.0.0.1:38080",
+    "runs": 3000,
+    "concurrency": 20,
+    "agents": 20,
+    "slots": 4,
+    "log_lines": 5,
+    "rate": 20.0,
+    "duration": 20.0,
+    "readers": 5,
+    "real_runs": 0,
+    "timeout": 600.0,
+    "json": "/tmp/claude-1000/-home-anshul-sharma-anshul-lab/4e087f05-a569-411e-af77-0faff61054ab/scratchpad/scale3.json"
+  },
+  "trigger": {
+    "metric": "POST /jobs/{id}/runs",
+    "n": 3000,
+    "p50_ms": 40.2,
+    "p95_ms": 94.3,
+    "p99_ms": 125.7,
+    "max_ms": 149.3,
+    "mean_ms": 46.0,
+    "runs": 3000,
+    "wall_s": 7.04,
+    "runs_per_s": 425.9
+  },
+  "drain": {
+    "runs": 3000,
+    "complete": true,
+    "wall_s": 72.96,
+    "runs_per_s": 41.1,
+    "agents": 20,
+    "slots_per_agent": 4,
+    "log_lines_per_run": 5
+  },
+  "steady": {
+    "rate_per_s": 20.0,
+    "duration_s": 20.0,
+    "runs": 400,
+    "completed": 400,
+    "latency": [
+      {
+        "metric": "trigger request",
+        "n": 400,
+        "p50_ms": 32.1,
+        "p95_ms": 63.4,
+        "p99_ms": 142.2,
+        "max_ms": 183.0,
+        "mean_ms": 36.7
+      },
+      {
+        "metric": "dispatch (trigger -> claimed by an agent)",
+        "n": 400,
+        "p50_ms": 64.6,
+        "p95_ms": 115.6,
+        "p99_ms": 205.6,
+        "max_ms": 252.7,
+        "mean_ms": 71.3
+      },
+      {
+        "metric": "end to end (trigger -> completed)",
+        "n": 400,
+        "p50_ms": 202.0,
+        "p95_ms": 310.5,
+        "p99_ms": 390.4,
+        "max_ms": 442.8,
+        "mean_ms": 212.7
+      },
+      {
+        "metric": "GET /runs?limit=50 (dashboard)",
+        "n": 190,
+        "p50_ms": 38.1,
+        "p95_ms": 81.6,
+        "p99_ms": 177.8,
+        "max_ms": 202.0,
+        "mean_ms": 42.7
+      },
+      {
+        "metric": "agent ack",
+        "n": 400,
+        "p50_ms": 34.4,
+        "p95_ms": 59.8,
+        "p99_ms": 80.6,
+        "max_ms": 158.6,
+        "mean_ms": 36.7
+      },
+      {
+        "metric": "agent complete",
+        "n": 400,
+        "p50_ms": 35.7,
+        "p95_ms": 62.2,
+        "p99_ms": 81.5,
+        "max_ms": 200.0,
+        "mean_ms": 38.6
+      },
+      {
+        "metric": "agent logs",
+        "n": 400,
+        "p50_ms": 26.7,
+        "p95_ms": 52.8,
+        "p99_ms": 90.9,
+        "max_ms": 185.6,
+        "mean_ms": 30.7
+      },
+      {
+        "metric": "agent started",
+        "n": 400,
+        "p50_ms": 31.1,
+        "p95_ms": 59.5,
+        "p99_ms": 82.1,
+        "max_ms": 191.6,
+        "mean_ms": 33.9
+      }
+    ]
+  },
+  "errors": {},
+  "retried_transport_errors": {}
+}

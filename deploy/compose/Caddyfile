@@ -1,0 +1,12 @@
+# HTTPS front door for remote agents and browsers (docker-compose.tls.yml).
+# Public domain: Caddy obtains and renews a Let's Encrypt certificate automatically
+# (ports 80 and 443 must be reachable). For a lab without a public name, set
+# TORQRUN_CADDY_TLS="tls internal" to use Caddy's own CA and give agents its root via --ca-file.
+{$TORQRUN_DOMAIN} {
+	{$TORQRUN_CADDY_TLS}
+	encode zstd gzip
+	reverse_proxy web:8080 {
+		# Live logs and agent long-polls must not be buffered.
+		flush_interval -1
+	}
+}
