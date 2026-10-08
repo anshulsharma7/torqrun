@@ -38,9 +38,10 @@ backups, and read the [CHANGELOG](../../CHANGELOG.md) before upgrading.
       ([containers](../guides/containers-and-artifacts.md)).
 - [ ] **Monitoring:** scrape `/metrics` (internal port, or `TORQRUN_METRICS_TOKEN`) and load
       the alert rules below.
-- [ ] **Notifications:** at least one channel for `run.failed` and `agent.offline`
-      ([guide](../guides/notifications.md)).
-- [ ] **Security:** read [security.md](security.md): roles, secrets, audit log.
+- [ ] **Notifications** (Team/Enterprise): at least one channel for `run.failed` and
+      `agent.offline` ([guide](../guides/notifications.md)).
+- [ ] **Security:** read [security.md](security.md): sign-in and API tokens; with Team or
+      Enterprise also roles, secrets and the audit log.
 
 ## Sizing and scaling
 
@@ -94,7 +95,8 @@ Also watch PostgreSQL itself: disk space, connections, replication if you use it
 the scheduler container's health; its healthcheck fails if its loop stalls.
 
 Logs are JSON lines on stdout (`TORQRUN_LOG_FORMAT=json`), with a `request_id` that is also
-returned in the `X-Request-ID` header and recorded in the audit log.
+returned in the `X-Request-ID` header (and, with Team or Enterprise, recorded in the audit
+log).
 
 ## Known limitations
 

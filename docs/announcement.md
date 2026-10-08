@@ -14,16 +14,14 @@ Torqrun is an open-source job orchestrator built for exactly that:
   HTTPS. No inbound ports, no SSH keys.
 - **Schedules** (cron and intervals, time-zone and DST aware), **workflows** (YAML DAGs) and
   **retries, timeouts and concurrency limits** built in.
-- **Live logs**, artifacts, a **Docker container executor**, encrypted **secrets**, **roles**
-  and an **audit log**.
-- **Notifications** to Slack, Teams, email or webhooks when something fails or an agent goes
-  offline.
+- **Live logs**, artifacts and a **Docker container executor**.
 - **Self-hosted in one command**: `git clone … && make up`.
 
-The Community Edition is free and Apache-2.0 licensed, with every feature and no limits on
-jobs, agents or users. For teams who'd rather not run it themselves, the **Team** plan gives
-you a managed control plane and priority support. **Enterprise** adds SSO, an SLA and help
-with on-prem or air-gapped deployments.
+The Community Edition is free and Apache-2.0 licensed, with no limits on jobs, runs or agents.
+When a team relies on it, the **Team** plan adds multiple users with roles, a secrets
+manager, an audit log and Slack/Teams/email/webhook alerts. It can be self-hosted (upgrade in
+place with one command, keeping all your data) or managed by us. **Enterprise** adds SSO, an
+SLA and help with on-prem or air-gapped deployments.
 
 ⭐ GitHub: https://github.com/anshulsharma7/torqrun
 🌐 Website: https://anshulsharma7.github.io/torqrun/
@@ -35,7 +33,7 @@ It's pre-1.0, and I'd love feedback: try it, break it, open issues.
 
 I just open-sourced Torqrun, a self-hosted job orchestrator: schedules, DAG workflows,
 retries and live logs, with outbound-only agents on your own machines. `make up` and you're
-running. Apache-2.0, free forever; managed plans available.
+running. Apache-2.0 core; Team and Enterprise plans add users, secrets, audit and alerts.
 https://github.com/anshulsharma7/torqrun
 
 ## Show HN
@@ -44,8 +42,8 @@ https://github.com/anshulsharma7/torqrun
 
 I built Torqrun because cron on a dozen servers doesn't tell you when things fail. It's a
 Postgres-backed control plane plus lightweight agents that pull work over HTTPS. You get cron
-and DAG workflows, retries with leases and crash recovery, live logs, a Docker executor,
-secrets, RBAC, an audit log and Slack/Teams/webhook alerts.
+and DAG workflows, retries with leases and crash recovery, live logs and a Docker executor.
+Paid plans add RBAC, secrets, an audit log and Slack/Teams/webhook alerts.
 
 Engineering details I care about:
 - The run state machine survives agent and control-plane crashes, with lease fencing and
@@ -54,4 +52,5 @@ Engineering details I care about:
 - Benchmarks are in the repo (~50 complete runs/s per API process; it scales horizontally).
 - A backup/restore drill runs in CI.
 
-Apache-2.0; paid plans are hosting and support. Happy to answer questions.
+The core is Apache-2.0; paid plans (open core, like Dagster) add team features, hosting and
+support, and upgrading keeps all your data. Happy to answer questions.
