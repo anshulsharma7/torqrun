@@ -31,12 +31,20 @@ test("container settings round-trip through the job form", async ({ page }) => {
   await expect(page.getByText("container python:3.12-slim · no network · 256 MB")).toBeVisible();
 });
 
-test("plans page shows the edition and how to upgrade", async ({ page }) => {
+test("plans page shows the edition and how to upgrade", async ({ page, request }) => {
+  const info = (await (await request.get("/api/v1/system/info")).json()) as { edition: string };
   await page.goto("/");
-  await page.getByRole("link", { name: /Community Edition/ }).click();
+  if (info.edition === "community") {
+    await page.getByRole("link", { name: /Community Edition/ }).click();
+  } else {
+    await page.goto("/plans");
+  }
   await expect(page.getByRole("heading", { name: "Plans", exact: true })).toBeVisible();
   await expect(page.getByText("Current plan")).toBeVisible();
   const sales = page.getByRole("link", { name: "Contact sales" });
   await expect(sales).toHaveAttribute("href", /^mailto:anshulshrm12@gmail\.com\?subject=Torqrun%20Team%20plan/);
   await expect(page.getByRole("link", { name: "anshulshrm12@gmail.com" })).toBeVisible();
+  const inPlace = page.getByText("make upgrade LICENSE=<license key> TOKEN=<registry token>");
+  if (info.edition === "community") await expect(inPlace).toBeVisible();
+  else await expect(inPlace).toHaveCount(0);
 });

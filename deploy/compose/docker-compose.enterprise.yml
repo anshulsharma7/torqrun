@@ -1,0 +1,25 @@
+# Torqrun Team/Enterprise: run the licensed images instead of building the Community Edition.
+# Same database, volumes and configuration: switching editions keeps all data.
+# Used automatically by `make up` when .env has TORQRUN_EDITION=enterprise
+# (set by `make upgrade`, removed by `make downgrade`).
+# (`build: !reset null` must be set per service: it isn't applied through YAML merge keys.)
+x-ee: &ee
+  pull_policy: ${TORQRUN_EE_PULL_POLICY:-missing}
+
+services:
+  migrate:
+    <<: *ee
+    build: !reset null
+    image: ${TORQRUN_EE_REGISTRY:-ghcr.io/anshulsharma7}/torqrun-enterprise-api:${TORQRUN_EE_VERSION:-latest}
+  api:
+    <<: *ee
+    build: !reset null
+    image: ${TORQRUN_EE_REGISTRY:-ghcr.io/anshulsharma7}/torqrun-enterprise-api:${TORQRUN_EE_VERSION:-latest}
+  scheduler:
+    <<: *ee
+    build: !reset null
+    image: ${TORQRUN_EE_REGISTRY:-ghcr.io/anshulsharma7}/torqrun-enterprise-scheduler:${TORQRUN_EE_VERSION:-latest}
+  web:
+    <<: *ee
+    build: !reset null
+    image: ${TORQRUN_EE_REGISTRY:-ghcr.io/anshulsharma7}/torqrun-enterprise-web:${TORQRUN_EE_VERSION:-latest}

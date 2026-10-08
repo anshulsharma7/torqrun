@@ -55,6 +55,32 @@ depends on Torqrun, are part of the paid **Team** and **Enterprise** plans. Paid
 
 ## How to upgrade
 
-Email [anshulshrm12@gmail.com](mailto:anshulshrm12@gmail.com) with your company, how many
-users and agents you expect, and whether you want it self-hosted or managed. You can also use
-**Plans → Contact sales** in the Torqrun UI, which pre-fills the email.
+1. **Buy a plan:** email [anshulshrm12@gmail.com](mailto:anshulshrm12@gmail.com) with your
+   company, how many users and agents you expect, and whether you want it self-hosted or
+   managed (or use **Plans → Contact sales** in the Torqrun UI). You receive a **license key**
+   and a **registry token** for the licensed images.
+2. **Upgrade in place:** in the directory where you run Torqrun:
+
+   ```bash
+   make upgrade LICENSE=<license key> TOKEN=<registry token>
+   ```
+
+   This:
+   - backs up the database and artifacts (`backups/`);
+   - saves the license in `.env`;
+   - downloads the licensed images **of the version you're running**, so the database
+     schema is identical, and restarts on them;
+   - checks that the paid features are active.
+
+   It takes well under a minute (14 s in our drill). **Everything stays as it was**: jobs,
+   runs and logs, schedules, workflows, artifacts, agents (no re-enrollment) and your admin
+   account, which becomes the first administrator of the paid edition. If any step fails,
+   the previous settings and images are restored automatically.
+3. **Start using it:** Users, Secrets, Audit log and Notifications appear under *Admin*.
+   Invite your team from **Users**.
+
+To go back, for example at the end of a subscription, run `make downgrade`. All data is kept;
+the paid features become inactive and come back if you upgrade again.
+
+**Managed plan instead?** We restore your [backup](operations/backup-restore.md) into your
+managed instance. Your agents keep running and only need the new server URL.

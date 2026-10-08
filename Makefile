@@ -1,6 +1,10 @@
 # Torqrun developer commands. Running the stack needs only Docker; the Python checks need uv.
-COMPOSE := docker compose -f deploy/compose/docker-compose.yml --project-directory .
 -include .env
+COMPOSE := docker compose -f deploy/compose/docker-compose.yml --project-directory .
+# Team/Enterprise: run the licensed images (see `make upgrade`).
+ifeq ($(TORQRUN_EDITION),enterprise)
+COMPOSE += -f deploy/compose/docker-compose.enterprise.yml
+endif
 POSTGRES_PASSWORD ?= torqrun_dev
 POSTGRES_PORT ?= 55432
 WEB_PORT ?= 8080
@@ -11,7 +15,7 @@ WEB_IN_DOCKER := docker run --rm -e CI=true -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 .DEFAULT_GOAL := help
 PLAYWRIGHT_VERSION := $(shell sed -n 's/.*"@playwright\/test": "[^0-9]*\([0-9.]*\)".*/\1/p' apps/web/package.json)
 
-.PHONY: help up up-tls down restart logs ps clean migrate test test-unit test-integration lint fmt typecheck web-check e2e-ui e2e-ui-isolated backup restore backup-drill bench security check
+.PHONY: help up up-tls down restart logs ps clean migrate test test-unit test-integration lint fmt typecheck web-check e2e-ui e2e-ui-isolated backup restore backup-drill bench security upgrade downgrade check
 
 help: ## Show this help
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-17s\033[0m %s\n", $$1, $$2}'
@@ -100,5 +104,11 @@ bench: ## Load test a throwaway stack (see docs/operations/benchmarks.md)
 
 security: ## Vulnerability scans: Python deps, web deps, built images (run `make up` first)
 	tools/ops/security-scan.sh
+
+upgrade: ## Switch this stack to Team/Enterprise in place: make upgrade LICENSE=<key> TOKEN=<registry token>
+	@tools/ops/upgrade.sh --license "$(LICENSE)" $(if $(TOKEN),--registry-token "$(TOKEN)") $(if $(VERSION),--version "$(VERSION)")
+
+downgrade: ## Switch this stack back to the Community Edition (data is kept)
+	@tools/ops/downgrade.sh
 
 check: lint typecheck test web-check ## Everything CI runs (except e2e-ui)

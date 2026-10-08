@@ -13,8 +13,9 @@ cd "$(dirname "$0")/../.."
 ROOT=$PWD
 PUBLIC=${TORQRUN_PUBLIC_REPO:-https://github.com/anshulsharma7/torqrun.git}
 DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1
-msg=${1:?usage: publish-public.sh "<commit message>" | --dry-run}
-[ -z "$(git status --porcelain)" ] || { echo "commit your changes first" >&2; exit 1; }
+EXPORT=""; [ "${1:-}" = "--export" ] && EXPORT=${2:?usage: publish-public.sh --export <dir>}
+msg=${1:?usage: publish-public.sh "<commit message>" | --dry-run | --export <dir>}
+[ -n "$EXPORT" ] || [ -z "$(git status --porcelain)" ] || { echo "commit your changes first" >&2; exit 1; }
 
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 tree="$work/tree"; mkdir "$tree"
@@ -27,6 +28,9 @@ done < .publicignore
 # Workspace without the Enterprise package.
 sed -i '/torqrun-ee/d' "$tree/pyproject.toml"
 (cd "$tree" && uv lock --quiet)
+if [ -n "$EXPORT" ]; then  # just the Community tree (tests use it), no verification or push
+  mkdir -p "$EXPORT" && cp -a "$tree/." "$EXPORT/" && echo "exported to $EXPORT"; exit 0
+fi
 
 echo "== verifying the Community tree"
 if grep -rIl --exclude-dir=.git "torqrun-ee\|torqrun_ee" "$tree" | grep -v -e 'apps/api/src/torqrun_api/edition.py' -e 'apps/scheduler/src/torqrun_scheduler/main.py' -e 'deploy/docker/python.Dockerfile' -e 'tools/release/publish-public.sh'; then

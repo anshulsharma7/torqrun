@@ -1,6 +1,6 @@
-import { Building2, Check, Mail, Minus, Server, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { ArrowUpCircle, Building2, Check, Mail, Minus, Server, Sparkles, Users, type LucideIcon } from "lucide-react";
 
-import { Badge, Card, cn, PageHeader } from "../components/ui";
+import { Badge, Card, CodeBlock, cn, PageHeader } from "../components/ui";
 import { contactUrl, EDITION, REPO_URL, SALES_EMAIL, useEdition } from "../lib/edition";
 
 type Availability = true | false | "service" | "roadmap";
@@ -184,6 +184,31 @@ export function PlansPage() {
         ))}
       </div>
       <p className="mt-3 text-xs text-fg-subtle">* On the roadmap; delivered for Enterprise customers on request. Everything else listed is available today. Team and Enterprise run self-hosted with a license key, or managed by us.</p>
+
+      {current === "community" && (
+        <Card title="Bought a plan? Upgrade this installation in place" icon={ArrowUpCircle} className="mt-8" bodyClassName="grid grid-cols-1 gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="space-y-3 text-sm text-fg-muted">
+            <p>
+              Run this in the directory where you started Torqrun, with the license key and registry token from your
+              purchase email:
+            </p>
+            <CodeBlock label="Terminal" code={"make upgrade LICENSE=<license key> TOKEN=<registry token>"} />
+          </div>
+          <ul className="space-y-2 text-sm">
+            {[
+              "Keeps everything: jobs, runs and logs, schedules, workflows, agents and your admin account. Both editions share the same database.",
+              "Backs up the database and artifacts first.",
+              "Installs the licensed images of the version you run, restarts, and checks the new features are active.",
+              "Puts everything back automatically if any step fails. `make downgrade` returns to Community, keeping your data.",
+            ].map((t) => (
+              <li key={t} className="flex gap-2">
+                <Check className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden="true" />
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card title="Compare plans" className="mt-8">
         <div className="overflow-x-auto">
