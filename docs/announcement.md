@@ -24,7 +24,7 @@ place with one command, keeping all your data) or managed by us. **Enterprise** 
 SLA and help with on-prem or air-gapped deployments.
 
 ⭐ GitHub: https://github.com/anshulsharma7/torqrun
-🌐 Website: https://torqrun.vercel.app
+🌐 Website: https://torqrun.thelasthumanteam.com
 ✉️ Plans and questions: anshulshrm12@gmail.com
 
 It's pre-1.0, and I'd love feedback: try it, break it, open issues.
